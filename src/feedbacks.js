@@ -267,6 +267,97 @@ export function getFeedbackDefinitions(self) {
 		}
 	}
 
+	if (SERIES.feedbacks.irisFstop) {
+		feedbacks.irisFstopText = {
+			type: 'advanced',
+			name: 'Lens - F-number on button',
+			description: 'Replaces the button text with "<label>" and the lens F-number read back from the camera (CLOSED when fully closed)',
+			options: [{ type: 'textinput', label: 'Label (e.g. "f/")', id: 'label', default: 'f/', useVariables: false }],
+			callback: function (feedback) {
+				return { text: `${feedback.options.label}${self.data.irisFstop}` }
+			},
+		}
+		feedbacks.irisFstopCompare = {
+			type: 'boolean',
+			name: 'Lens - F-number comparison',
+			description: 'True while the lens F-number read back from the camera compares true against the value',
+			defaultStyle: { color: foregroundColor, bgcolor: backgroundColorOrange },
+			options: [
+				{
+					type: 'dropdown',
+					label: 'F-number is',
+					id: 'op',
+					default: 'eq',
+					choices: [
+						{ id: 'eq', label: 'equal to (within 0.05)' },
+						{ id: 'ge', label: 'at least (more closed)' },
+						{ id: 'le', label: 'at most (more open)' },
+					],
+				},
+				{ type: 'number', label: 'F-number', id: 'value', default: 2.8, min: 1, max: 64, step: 0.1 },
+			],
+			callback: function (feedback) {
+				const f = parseFloat(self.data.irisFstop)
+				if (!Number.isFinite(f)) return false
+				const v = Number(feedback.options.value)
+				switch (feedback.options.op) {
+					case 'ge':
+						return f >= v - 0.05
+					case 'le':
+						return f <= v + 0.05
+					default:
+						return Math.abs(f - v) < 0.05
+				}
+			},
+		}
+	}
+
+	if (SERIES.feedbacks.masterBlack) {
+		feedbacks.masterBlackText = {
+			type: 'advanced',
+			name: 'Color - Master black on button',
+			description: 'Replaces the button text with "<label>" and the master black (master pedestal) read back from the camera',
+			options: [{ type: 'textinput', label: 'Label', id: 'label', default: 'MB ', useVariables: false }],
+			callback: function (feedback) {
+				const v = self.data.masterBlack
+				return { text: `${feedback.options.label}${typeof v === 'number' && v > 0 ? '+' : ''}${v}` }
+			},
+		}
+		feedbacks.masterBlackCompare = {
+			type: 'boolean',
+			name: 'Color - Master black comparison',
+			description: 'True while the master black read back from the camera compares true against the value',
+			defaultStyle: { color: foregroundColor, bgcolor: backgroundColorOrange },
+			options: [
+				{
+					type: 'dropdown',
+					label: 'Master black is',
+					id: 'op',
+					default: 'eq',
+					choices: [
+						{ id: 'eq', label: 'equal to' },
+						{ id: 'ge', label: 'at least' },
+						{ id: 'le', label: 'at most' },
+					],
+				},
+				{ type: 'number', label: 'Value (-200..200)', id: 'value', default: 0, min: -200, max: 200 },
+			],
+			callback: function (feedback) {
+				const v = self.data.masterBlack
+				if (typeof v !== 'number') return false
+				const t = Number(feedback.options.value)
+				switch (feedback.options.op) {
+					case 'ge':
+						return v >= t
+					case 'le':
+						return v <= t
+					default:
+						return v === t
+				}
+			},
+		}
+	}
+
 	if (SERIES.feedbacks.preset) {
 		feedbacks.recallModePset = {
 			type: 'boolean',

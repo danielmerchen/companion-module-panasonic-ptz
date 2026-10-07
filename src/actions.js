@@ -823,6 +823,36 @@ export function getActionDefinitions(self) {
 	// #### Exposure Actions ####
 	// ##########################
 
+	if (seriesActions.masterBlack) {
+		const mbHex = (n) => (0x800 + Math.max(-200, Math.min(200, Math.round(n)))).toString(16).toUpperCase().padStart(3, '0')
+		actions.masterBlackSet = {
+			name: 'Color - Set Master Black',
+			description: 'Master pedestal, -200..+200 (0 = default). Only effective when the camera Color Setting is Normal',
+			options: [{ type: 'number', label: 'Master black', id: 'val', default: 0, min: -200, max: 200, range: true }],
+			callback: async (action) => {
+				const n = Math.max(-200, Math.min(200, Math.round(Number(action.options.val))))
+				self.data.masterBlack = n
+				await sendCam(self, 'OSJ:0F:' + mbHex(n))
+				self.checkVariables()
+				self.checkFeedbacks()
+			},
+		}
+		actions.masterBlackStep = {
+			name: 'Color - Step Master Black',
+			description: 'Moves master black relative to the value last read back from the camera',
+			options: [{ type: 'number', label: 'Step (negative = darker)', id: 'step', default: 5, min: -200, max: 200 }],
+			callback: async (action) => {
+				const base = typeof self.data.masterBlack === 'number' ? self.data.masterBlack : null
+				if (base === null) throw new Error('Master black not read from the camera yet')
+				const n = Math.max(-200, Math.min(200, base + Math.round(Number(action.options.step))))
+				self.data.masterBlack = n
+				await sendCam(self, 'OSJ:0F:' + mbHex(n))
+				self.checkVariables()
+				self.checkFeedbacks()
+			},
+		}
+	}
+
 	if (seriesActions.iris) {
 		actions.irisU = {
 			name: 'Exposure - Iris Up',

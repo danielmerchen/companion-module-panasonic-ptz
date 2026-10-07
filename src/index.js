@@ -4,6 +4,7 @@ import { getActionDefinitions } from './actions.js'
 import { getFeedbackDefinitions } from './feedbacks.js'
 import { getPresetDefinitions } from './presets.js'
 import { setVariables, checkVariables } from './variables.js'
+import { getAndUpdateSeries } from './common.js'
 import { ConfigFields, applyConfigDefaults } from './config.js'
 import * as net from 'net'
 import got from 'got'
@@ -183,6 +184,13 @@ class PanasonicPTZInstance extends InstanceBase {
 		}
 	}
 	storeData(str) {
+		// Iris position (555h closed .. FFFh open): "gi" + 3 hex + auto flag (#GI), "axi" + 3 hex (#AXI)
+		const iris = /^(?:gi|axi)([0-9A-Fa-f]{3})/.exec(str[0])
+		if (iris) {
+			const pos = parseInt(iris[1], 16)
+			this.data.irisPosition = Math.max(0, Math.min(100, Math.round(((pos - 0x555) / (0xfff - 0x555)) * 100)))
+		}
+
 		if (str[0].substring(0, 3) === 'rER') {
 			if (str[0] === 'rER00') {
 				this.data.error = 'No Errors'
@@ -264,8 +272,18 @@ class PanasonicPTZInstance extends InstanceBase {
 			case 'OSJ':
 				if (str[1] == '27') {
 					this.data.colorBarTone = str[2]
+				} else if (str[1] == '0F') {
+					// Master Pedestal (master black): 800h = 0, 738h = -200, 8C8h = +200
+					const raw = parseInt(String(str[2]).replace('0x', ''), 16)
+					if (Number.isFinite(raw)) this.data.masterBlack = raw - 0x800
 				}
 				break
+			case 'OIF': {
+				// Iris F number, in tenths: 0Eh = F1.4, 1Ch = F2.8, 38h = F5.6, A0h = F16, FFh = CLOSE
+				const raw = parseInt(String(str[1]).replace('0x', ''), 16)
+				if (Number.isFinite(raw)) this.data.irisFstop = raw >= 0xff ? 'CLOSED' : (raw / 10).toFixed(1)
+				break
+			}
 			case 'DCB':
 				this.data.colorBar = str[1]
 				break
@@ -297,8 +315,47 @@ class PanasonicPTZInstance extends InstanceBase {
 				break
 		}
 	}
+	// Iris F-number, iris position and master black are not always pushed by the camera, so ask for them periodically
+	startStatusPoll() {
+		this.stopStatusPoll()
+		const ms = Number(this.config.statusPollMs) || 0
+		if (!ms || !this.config.host) return
+		const base = `http://${this.config.host}:${this.config.httpPort}/cgi-bin/`
+		let busy = false
+		this.statusPollTimer = setInterval(async () => {
+			if (busy) return
+			busy = true
+			try {
+				// the series can change after the model is auto-detected, so decide what to ask for on every tick
+				const SERIES = getAndUpdateSeries(this)
+				const queries = []
+				if (SERIES.variables.irisFstop) queries.push('aw_cam?cmd=QIF&res=1')
+				if (SERIES.variables.irisPosition) queries.push('aw_ptz?cmd=%23GI&res=1')
+				if (SERIES.variables.masterBlack) queries.push('aw_cam?cmd=QSJ:0F&res=1')
+				if (queries.length === 0) return
+				for (const q of queries) {
+					const response = await got.get(base + q, { timeout: { request: 3000 } })
+					const line = String(response.body).trim()
+					if (line) this.storeData(line.split(':'))
+				}
+				this.checkVariables()
+				this.checkFeedbacks()
+			} catch (err) {
+				// the camera may be off or busy; the next tick will try again
+			} finally {
+				busy = false
+			}
+		}, Math.max(250, ms))
+	}
+	stopStatusPoll() {
+		if (this.statusPollTimer) {
+			clearInterval(this.statusPollTimer)
+			this.statusPollTimer = null
+		}
+	}
 	// When module gets deleted
 	async destroy() {
+		this.stopStatusPoll()
 		// Remove TCP Server and close all connections
 		if (this.server) {
 			// Stop getting Status Updates
@@ -328,6 +385,9 @@ class PanasonicPTZInstance extends InstanceBase {
 			oaf: 'NaN',
 			colorTemperature: 'Unknown',
 			irisMode: 'NaN',
+			irisFstop: 'NaN',
+			irisPosition: 'NaN',
+			masterBlack: 'NaN',
 			recallModePset: 'NaN',
 			colorBar: 'NaN',
 			colorBarSetup: 'NaN',
@@ -372,6 +432,7 @@ class PanasonicPTZInstance extends InstanceBase {
 		this.checkVariables()
 		this.init_feedbacks()
 		this.checkFeedbacks()
+		this.startStatusPoll()
 
 		this.speedChangeEmitter = new EventEmitter()
 	}
@@ -387,6 +448,7 @@ class PanasonicPTZInstance extends InstanceBase {
 		this.checkVariables()
 		this.init_feedbacks()
 		this.checkFeedbacks()
+		this.startStatusPoll()
 	}
 
 	// Return config fields for web config

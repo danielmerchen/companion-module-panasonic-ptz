@@ -309,6 +309,9 @@ export const SERIES_SPECS = [
 			tally2: true,
 			OAF: true,
 			iris: true,
+			irisFstop: true,
+			irisPosition: true,
+			masterBlack: true,
 			gainValue: true,
 			preset: true,
 			colorTemperature: false,
@@ -320,6 +323,8 @@ export const SERIES_SPECS = [
 			insState: true,
 			autoFocus: true,
 			autoIris: true,
+			irisFstop: true,
+			masterBlack: true,
 			preset: true,
 			colorBarsState: true,
 			colorBarsStatusState: false,
@@ -339,7 +344,8 @@ export const SERIES_SPECS = [
 			iris: true,
 			gain: { cmd: 'OGU:', dropdown: c.CHOICES_GAIN_UE150() },
 			shut: false, // TODO: Add it's own shutter "OSJ:06:"
-			ped: false, // TODO: Add it's own Pedestal "OSJ:0F:"
+			ped: false, // R pedestal etc. not implemented
+			masterBlack: true, // Master Pedestal "OSJ:0F:" (-200..+200)
 			filter: { cmd: 'OFT:', dropdown: c.CHOICES_FILTER_UE150() },
 			preset: true,
 			speedPset: true,

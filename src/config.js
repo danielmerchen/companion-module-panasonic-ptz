@@ -9,6 +9,7 @@ export function applyConfigDefaults(config) {
 		autoTCP: config.autoTCP ?? true,
 		model: config.model ?? 'Auto',
 		debug: config.debug ?? false,
+		statusPollMs: config.statusPollMs ?? 2000,
 	}
 }
 
@@ -120,6 +121,23 @@ export const ConfigFields = [
 		width: 4,
 		label: 'Manual TCP Port',
 		value: 'TCP Port (Default: 31004) only used when "Auto TCP" is OFF/Disabled',
+	},
+	{
+		type: 'number',
+		id: 'statusPollMs',
+		label: 'Iris F-number / iris position / master black poll (ms, 0 = off)',
+		width: 6,
+		default: 2000,
+		min: 0,
+		max: 60000,
+	},
+	{
+		type: 'static-text',
+		id: 'statusPollInfo',
+		width: 6,
+		label: 'Status polling',
+		value:
+			'Cameras that support it (currently the UE150 series) are polled for the lens F-number, iris position and master black, because they do not always send an update notification (e.g. while auto iris is moving). 1000-2000 ms is plenty.',
 	},
 	{
 		type: 'checkbox',

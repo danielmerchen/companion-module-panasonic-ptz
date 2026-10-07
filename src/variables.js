@@ -44,6 +44,15 @@ export function setVariables(self) {
 	if (SERIES.variables.iris) {
 		variables.push({ variableId: 'irisMode', name: 'Auto Iris Mode' })
 	}
+	if (SERIES.variables.irisFstop) {
+		variables.push({ variableId: 'irisFstop', name: 'Lens F-number only, e.g. "5.6" (CLOSED if fully closed). Add the "f/" in your button text' })
+	}
+	if (SERIES.variables.irisPosition) {
+		variables.push({ variableId: 'irisPosition', name: 'Iris position, % open (0 closed .. 100 open)' })
+	}
+	if (SERIES.variables.masterBlack) {
+		variables.push({ variableId: 'masterBlack', name: 'Master black (master pedestal), -200..+200' })
+	}
 	if (SERIES.variables.gainValue) {
 		variables.push({ variableId: 'gainValue', name: 'Gain Value' })
 	}
@@ -87,6 +96,9 @@ export function checkVariables(self) {
 		OAF: self.data.oaf,
 		colorTemperature: colorTemperature?.label,
 		irisMode: self.data.irisMode,
+		irisFstop: self.data.irisFstop,
+		irisPosition: self.data.irisPosition,
+		masterBlack: self.data.masterBlack,
 		gainValue: gainValue?.label,
 		presetMode: self.data.recallModePset,
 		ptSpeedVar: self.ptSpeed,
